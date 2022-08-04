@@ -48,9 +48,10 @@ pub async fn main() -> Result<(), io::Error> {
              Messages_buff.push(ListItem::new(rx.recv().unwrap()));
 
                 terminal.draw(|f| {
-                    let size = f.size();
+                    let mut size = f.size();
+                    if (Messages_buff.len() as u16 > size.height - 2) { Messages_buff.remove(0); }
                     let itemlist = List::new(Messages_buff.as_slice())
-                        .block(Block::default().title("List").borders(Borders::ALL));
+                        .block(Block::default().title("Chat").borders(Borders::ALL));
                     f.render_widget(itemlist, size);
                 }).unwrap();
         }
