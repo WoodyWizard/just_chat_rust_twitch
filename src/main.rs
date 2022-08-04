@@ -13,7 +13,7 @@ use twitch_irc::{ClientConfig, SecureTCPTransport};
 use twitch_irc::message::*;
 use std::cell::{RefCell, Ref};
 use std::sync::mpsc::{channel, Sender, Receiver};
-use tokio::*;
+use tokio::{*, task::JoinHandle};
  
 
 #[tokio::main]
@@ -43,7 +43,7 @@ pub async fn main() -> Result<(), io::Error> {
         }
     });
 
-    let chat_handle = tokio::spawn( async move {
+    let mut chat_handle =  tokio::spawn(async move  {
         while true {
              Messages_buff.push(ListItem::new(rx.recv().unwrap()));
 
@@ -52,21 +52,21 @@ pub async fn main() -> Result<(), io::Error> {
                     let itemlist = List::new(Messages_buff.as_slice())
                         .block(Block::default().title("List").borders(Borders::ALL));
                     f.render_widget(itemlist, size);
-                });
+                }).unwrap();
         }
        
-        disable_raw_mode();
+        disable_raw_mode().unwrap();
         execute!(
             terminal.backend_mut(),
             LeaveAlternateScreen,
             DisableMouseCapture
-            );
-        terminal.show_cursor();
+            ).unwrap();
+        terminal.show_cursor().unwrap();
     });
 
-    client.join("screamlark".to_owned()).unwrap();
+    client.join("woodywizzard".to_owned()).unwrap();
     join_handle.await.unwrap();
     chat_handle.await.unwrap();
-   
+
     Ok(())
 }
