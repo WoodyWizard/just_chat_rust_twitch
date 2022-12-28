@@ -20,8 +20,8 @@ use std::rc::Rc;
 pub async fn main() -> Result<(), io::Error> {
 
     let (tx,rx): (Sender<PrivmsgMessage>, Receiver<PrivmsgMessage>) = channel();
-    let mut messages_buff: Vec<ListItem> = Vec::new();
-    let mut message_range: Vec<ListItem> = Vec::new();
+    let mut all_messages: Vec<ListItem> = Vec::new();
+    let mut visible_chat: Vec<ListItem> = Vec::new();
 
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -46,25 +46,44 @@ pub async fn main() -> Result<(), io::Error> {
     });
 
     let mut chat_handle =  tokio::spawn(async move  {
+        let mut carret = 0;
         while true {
-            let msg = rx.recv().unwrap();
-            let complex_msg = String::from(msg.sender.name + " : " + &msg.message_text);
-            let mut color = msg.name_color;
-            if let None = color {
-                color = Some(RGBColor{r: 255, g: 255, b: 255});
-            }
-            let color = color.unwrap();
-            messages_buff.push(ListItem::new(complex_msg).style(Style::default().fg(Color::Rgb(color.r, color.g, color.b))));
-            let message_1 = messages_buff.last().unwrap().clone();
-            message_range.push(message_1);
+            let msg = rx.recv();
+            if let Ok(msg) = msg {
+                let terminal_size = terminal.size();
+                if let Ok(terminal_size) = terminal_size {
+                    let t_width = terminal_size.width;
 
-                terminal.draw(|f| {
-                    let mut size = f.size();
-                    if (message_range.len() as u16 > size.height - 2) { message_range.remove(0); }
-                    let itemlist = List::new(message_range.as_slice())
-                        .block(Block::default().title("Chat").borders(Borders::ALL));
-                    f.render_widget(itemlist, size);
-                }).unwrap();
+                    let mut complex_msg = String::from(msg.sender.name + " : ");
+
+                    let carry_over = t_width - complex_msg.chars().count() as u16 - 2;
+                    for (i, value_char) in msg.message_text.chars().enumerate() {
+                        complex_msg.push(value_char);
+                        if (i+1) as u16 % carry_over == 0 {
+                            complex_msg.push('\n'); 
+                        }
+                    }
+                    let mut color = msg.name_color;
+                    if let None = color {
+                        color = Some(RGBColor{r: 255, g: 255, b: 255});
+                    }
+                    let color = color.unwrap();
+
+
+                    all_messages.push(ListItem::new(complex_msg).style(Style::default().fg(Color::Rgb(color.r, color.g, color.b))));
+                    let new_message = all_messages.last().unwrap().clone();
+                    visible_chat.push(new_message);
+                    carret = visible_chat.len();
+
+                        terminal.draw(|f| {
+                            let size = f.size();
+                            if (visible_chat.len() as u16 > size.height - 2) { visible_chat.remove(0); }
+                            let itemlist = List::new(visible_chat.as_slice())
+                                .block(Block::default().title("Chat").borders(Borders::ALL));
+                            f.render_widget(itemlist, size);
+                        }).unwrap();
+                }
+            }
         }
        
         disable_raw_mode().unwrap();
@@ -76,7 +95,7 @@ pub async fn main() -> Result<(), io::Error> {
         terminal.show_cursor().unwrap();
     });
 
-    client.join("yatororain".to_owned()).unwrap();
+    client.join("cemka".to_owned()).unwrap();
     join_handle.await.unwrap();
     chat_handle.await.unwrap();
 
